@@ -16,7 +16,7 @@ public abstract class MessageQueue
     public int Size { get; private set; }
     public byte[] Data { get; private set; }
 
-    protected struct MsgQueueHeader
+    protected record struct MsgQueueHeader
     {
         public long NumReaders;
         public long WritePointer;

@@ -16,7 +16,7 @@ public class FakeMessage : IMessage
 
     public void Close() => _data = [];
 
-    public int GetSize() => _data.Length;
+    public long GetSize() => _data.Length;
 
     public byte[] GetData() => _data;
 

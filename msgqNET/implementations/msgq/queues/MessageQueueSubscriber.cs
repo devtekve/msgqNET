@@ -3,29 +3,29 @@ namespace msgqNET.implementations.msgq.queues;
 public class MessageQueueSubscriber : MessageQueue
 {
     private static readonly long Uid = GetUid();
-    public long ReaderId { get; private set; }
-    public bool ReadConflate { get; private set; }
+    private long ReaderId { get; set; }
+    private bool ReadConflate { get; set; }
 
     // Expose the underlying buffer and pointers through properties.
     // Assume Header is an object that holds the shared state.
-    public long WritePointer => Header.WritePointer;
+    private long WritePointer => Header.WritePointer;
 
-    public long ReadPointer
+    private long ReadPointer
     {
         get => Header.ReadPointers[ReaderId];
-        private set => Header.ReadPointers[ReaderId] = value;
+        set => Header.ReadPointers[ReaderId] = value;
     }
-    
-    public bool ReadValid
+
+    private bool ReadValid
     {
         get => Header.ReadValids[ReaderId] != 0;
-        private set => Header.ReadValids[ReaderId] = value ? 1 : 0;
+        set => Header.ReadValids[ReaderId] = value ? 1 : 0;
     }
-    
-    public long ReaderUid
+
+    private long ReaderUid
     {
         get => Header.ReaderUIDs[ReaderId];
-        private set => Header.ReaderUIDs[ReaderId] = value;
+        set => Header.ReaderUIDs[ReaderId] = value;
     }
 
     private readonly object _syncLock = new();
@@ -36,7 +36,7 @@ public class MessageQueueSubscriber : MessageQueue
     {
         if (accessor == null)
             throw new InvalidOperationException("Message queue not initialized");
-        
+
         while (true)
         {
             var curNumReaders = Header.NumReaders;
@@ -105,31 +105,65 @@ public class MessageQueueSubscriber : MessageQueue
         }
     }
 
-    // private static T Align<T>(T value) where T : INumber<T>, IBitwiseOperators<T, T, T>
-    // {
-    //     // Constants
-    //     var seven = T.CreateChecked(7);
-    //     // Use the bitwise operator directly through the ~ operator
-    //     var mask = ~seven;
-    //
-    //     // (value + 7) & ~7
-    //     return (value + seven) & mask;
-    // }
-    
-    // private IMsgqMessage? ReadMessage()
-    // {
-    //     while (ReaderUid != Uid)
-    //     {
-    //         Console.WriteLine("Reader was evicted. Reconnecting...");
-    //         InitializeSubscriber();
-    //     }
-    //
-    //     while (!ReadValid)
-    //     {
-    //         Console.WriteLine("Reader is not valid. Resetting...");
-    //         ResetReader();
-    //     }
-    //    
-    //     
-    // }
+    public MsgqMessage? Read(bool nonBlocking = false)
+    {
+        do
+        {
+            lock (_syncLock)
+            {
+                // Read the message
+                var readPointer = new Packed64(ReadPointer);
+                var writePointer = new Packed64(WritePointer);
+
+                if (readPointer == writePointer)
+                {
+                    Console.WriteLine($"No message to read because read pointer [{ReadPointer}] is equal to write pointer [{WritePointer}].");
+                    continue;
+                }
+
+                // Get size
+                var size = BitConverter.ToInt64(Data, readPointer.ReadPointer);
+
+                // Check if valid
+                if (!ReadValid)
+                {
+                    Console.WriteLine("Read pointer is invalid. Resetting reader.");
+                    ResetReader();
+                    continue;
+                }
+
+                if (size == -1)
+                {
+                    Console.WriteLine("Size is -1. Skipping.");
+                    readPointer.CycleCounter++;
+                    continue;
+                }
+
+                // // crashing is better than passing garbage data to the consumer
+                // // the size will have weird value if it was overwritten by data accidentally
+                // assert((uint64_t)size < q->size);
+                // assert(size > 0);
+
+                // uint32_t new_read_pointer = ALIGN(read_pointer + sizeof(std::int64_t) + size);
+                var newReadPointer = new Packed64(readPointer.ReadPointer + sizeof(long) + size);
+                if (ReadConflate && writePointer != newReadPointer)
+                {
+                    Console.WriteLine("Read conflate is enabled. Skipping.");
+                    ReadPointer = newReadPointer.Value;
+                    continue;
+                }
+
+                var spn = new Span<byte>(Data, readPointer.ReadPointer + sizeof(long), (int)size);
+                var msg = new MsgqMessage(spn.ToArray(), size);
+
+                ReadPointer = newReadPointer.Value;
+                if (ReadValid) return msg;
+
+                msg.Close();
+                ResetReader();
+            }
+        } while (!nonBlocking);
+
+        return null;
+    }
 }

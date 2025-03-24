@@ -23,7 +23,7 @@ public class MsgqSubSocket : ISubSocket
 
     public IMessage? Receive(bool nonBlocking = false)
     {
-        throw new NotImplementedException();
+        return _queue?.Read(nonBlocking);
     }
 
     public IntPtr GetRawSocket()

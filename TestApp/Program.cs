@@ -5,30 +5,36 @@ using msgqNET.interfaces;
 using TestApp;
 
 // Set up the dependency injection container
-var serviceProvider = new ServiceCollection()
-    .AddSingleton<IEventProcessor, EventProcessor>()
-    .AddMessaging()
-    .BuildServiceProvider();
+
+internal class Program
+{
+    public static void Main(string endpoint = "backupManagerSP")
+    {
+        var serviceProvider = new ServiceCollection()
+            .AddSingleton<IEventProcessor, EventProcessor>()
+            .AddMessaging()
+            .BuildServiceProvider();
 
 // Get the event processor from the service provider
-var messagingFactory = serviceProvider.GetRequiredService<IMessagingFactory>();
-var context = messagingFactory.CreateContext();
+        var messagingFactory = serviceProvider.GetRequiredService<IMessagingFactory>();
+        var context = messagingFactory.CreateContext();
 
 
-var subsocket = messagingFactory.CreateSubSocket(context, "carState", "127.0.0.1");
-subsocket.SetTimeout(TimeSpan.FromSeconds(30));
+        var subsocket = messagingFactory.CreateSubSocket(context, endpoint, "127.0.0.1");
+        subsocket.SetTimeout(TimeSpan.FromSeconds(30));
 //
-// long counter = 0;
-// // Event processing loop
-// while (true)
-// {
-//     Console.WriteLine($"Processing event {counter++}");
-//     // pubsocket.SendMessage(new FakeMessage());
-//     // await Task.Delay(1000); // Sleep for 1 second
-//     var x = subsocket.Receive();
-//     HexDumper.PrintHexDump(x?.GetData() ?? []);
-//     Console.WriteLine();
-// }
+        long counter = 0;
+// Event processing loop
+        while (true)
+        {
+            Console.WriteLine($"Processing event {counter++}");
+            // pubsocket.SendMessage(new FakeMessage());
+            // await Task.Delay(1000); // Sleep for 1 second
+            var x = subsocket.Receive();
+            HexDumper.PrintHexDump(x?.GetData() ?? []);
+            Console.WriteLine();
+            Thread.Sleep(1);
+        }
 
 
 
@@ -54,12 +60,16 @@ subsocket.SetTimeout(TimeSpan.FromSeconds(30));
 //     HexDumper.PrintHexDump(subsocket.Receive()?.GetData() ?? []);
 // }
 
-var pubqueue = new MessageQueuePublisher("backupManagerSP", 10486144);
-var queue = new MessageQueueSubscriber("backupManagerSP", 10486144);
-var queue2 = new MessageQueueSubscriber("backupManagerSP", 10486144);
+        var pubqueue = new MessageQueuePublisher("backupManagerSP", 10486144);
+        var queue = new MessageQueueSubscriber("backupManagerSP", 10486144);
+        var queue2 = new MessageQueueSubscriber("backupManagerSP", 10486144);
 
 // Perform operations...
 
-pubqueue.Close();
-queue.Close();
-queue2.Close();
+        pubqueue.Close();
+        queue.Close();
+        queue2.Close();
+    }
+}
+
+

@@ -4,5 +4,5 @@ namespace msgqNET.implementations.msgq;
 
 public interface IMsgqMessage : IMessage
 {
-    void TakeOwnership(byte[] data, int size);
+    void TakeOwnership(byte[] data, long size);
 }
