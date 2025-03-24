@@ -18,26 +18,26 @@ public abstract class MessageQueue
 
     protected record struct MsgQueueHeader
     {
-        public long NumReaders;
-        public long WritePointer;
-        public long WriterUid;
+        public ulong NumReaders;
+        public ulong WritePointer;
+        public ulong WriterUid;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxReaders)]
-        public long[] ReadPointers;
+        public ulong[] ReadPointers;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxReaders)]
-        public long[] ReadValids;
+        public ulong[] ReadValids;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxReaders)]
-        public long[] ReaderUIDs;
+        public ulong[] ReaderUIDs;
 
         public MsgQueueHeader(int numReaders)
         {
             NumReaders = 0;
             WritePointer = 0;
-            ReadPointers = new long[numReaders];
-            ReadValids = new long[numReaders];
-            ReaderUIDs = new long[numReaders];
+            ReadPointers = new ulong[numReaders];
+            ReadValids = new ulong[numReaders];
+            ReaderUIDs = new ulong[numReaders];
         }
     }
 

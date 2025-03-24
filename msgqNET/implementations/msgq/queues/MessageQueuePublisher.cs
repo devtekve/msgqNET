@@ -7,8 +7,8 @@ public class MessageQueuePublisher : MessageQueue
         if (accessor == null)
             throw new InvalidOperationException("Message queue not initialized");
 
-        long uid = GetUid();
-        Header.WriterUid = uid;
+        var uid = GetUid();
+        Header.WriterUid = (ulong)uid;
         Header.NumReaders = 0;
         for (var i = 0; i < MaxReaders; i++)
         {

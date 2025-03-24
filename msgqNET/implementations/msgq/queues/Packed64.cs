@@ -1,8 +1,8 @@
 namespace msgqNET.implementations.msgq.queues;
 
-public struct Packed64(long Value) : IEquatable<Packed64>
+public struct Packed64(ulong value) : IEquatable<Packed64>
 {
-    private long _value = Value;
+    private ulong _value = value;
 
     // Constructor to initialize with a 64-bit value
 
@@ -10,18 +10,18 @@ public struct Packed64(long Value) : IEquatable<Packed64>
     public int CycleCounter
     {
         get => (int)(_value >> 32);  // Shift right by 32 bits to get the higher part
-        set => _value = ((long)value << 32) | (_value & 0xFFFFFFFF); // Set the higher part
+        set => _value = ((ulong)value << 32) | (_value & 0xFFFFFFFF); // Set the higher part
     }
 
     // Getter for the lower 32 bits
     public int ReadPointer
     {
         get => (int)(_value & 0xFFFFFFFF);
-        set => _value = ((long)CycleCounter << 32) | (value & 0xFFFFFFFF);
+        set => _value = ((ulong)CycleCounter << 32) | (ulong)(value & 0xFFFFFFFF);
     }
 
     // Optionally, allow setting the entire 64-bit value
-    public long Value
+    public ulong Value
     {
         get => _value;
         set => _value = value;

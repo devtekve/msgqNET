@@ -3,14 +3,14 @@ namespace msgqNET.implementations.msgq.queues;
 public class MessageQueueSubscriber : MessageQueue
 {
     private static readonly long Uid = GetUid();
-    private long ReaderId { get; set; }
+    private ulong ReaderId { get; set; }
     private bool ReadConflate { get; set; }
 
     // Expose the underlying buffer and pointers through properties.
     // Assume Header is an object that holds the shared state.
-    private long WritePointer => Header.WritePointer;
+    private ulong WritePointer => Header.WritePointer;
 
-    private long ReadPointer
+    private ulong ReadPointer
     {
         get => Header.ReadPointers[ReaderId];
         set => Header.ReadPointers[ReaderId] = value;
@@ -19,10 +19,10 @@ public class MessageQueueSubscriber : MessageQueue
     private bool ReadValid
     {
         get => Header.ReadValids[ReaderId] != 0;
-        set => Header.ReadValids[ReaderId] = value ? 1 : 0;
+        set => Header.ReadValids[ReaderId] = value ? 1UL : 0UL;
     }
 
-    private long ReaderUid
+    private ulong ReaderUid
     {
         get => Header.ReaderUIDs[ReaderId];
         set => Header.ReaderUIDs[ReaderId] = value;
@@ -57,7 +57,7 @@ public class MessageQueueSubscriber : MessageQueue
             // Start with read_valid = false
             ReadValid = false; // false
             ReadPointer = 0;
-            ReaderUid = Uid;
+            ReaderUid = (ulong)Uid;
 
             WriteHeader();
             break;
@@ -99,8 +99,10 @@ public class MessageQueueSubscriber : MessageQueue
         lock (_syncLock)
         {
             // Sync read pointer with write pointer on reset
-            Header.ReadPointers[ReaderId] = Header.WritePointer;
-            Header.ReadValids[ReaderId] = 0; // mark as invalid, to be revalidated externally if needed
+            // Header.ReadPointers[ReaderId] = Header.WritePointer;
+            // Header.ReadValids[ReaderId] = 0; // mark as invalid, to be revalidated externally if needed
+            ReadValid = true;
+            ReadPointer = WritePointer;
             WriteHeader();
         }
     }
@@ -145,7 +147,7 @@ public class MessageQueueSubscriber : MessageQueue
                 // assert(size > 0);
 
                 // uint32_t new_read_pointer = ALIGN(read_pointer + sizeof(std::int64_t) + size);
-                var newReadPointer = new Packed64(readPointer.ReadPointer + sizeof(long) + size);
+                var newReadPointer = new Packed64((ulong)(readPointer.ReadPointer + sizeof(ulong) + size));
                 if (ReadConflate && writePointer != newReadPointer)
                 {
                     Console.WriteLine("Read conflate is enabled. Skipping.");
