@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using msgqNET.implementations.fake;
+using msgqNET.implementations.msgq;
 using msgqNET.implementations.zmq;
 using msgqNET.interfaces;
 
@@ -20,12 +21,25 @@ public static class MessagingServiceExtensions
 
         // Register your specific implementations
         // You would replace these with your actual implementations
-        services.AddTransient<IContext, ZmqContext>();
-        services.AddTransient<ISubSocket, ZmqSubSocket>();
-        services.AddTransient<IPubSocket, ZmqPubSocket>();
+        // RegisterZmqSocket(services);
+        RegisterMsqSocket(services);
         services.AddTransient<IPoller, FakePoller>();
 
         return services;
+    }
+
+    private static void RegisterZmqSocket(IServiceCollection services)
+    {
+        services.AddTransient<IContext, ZmqContext>();
+        services.AddTransient<ISubSocket, ZmqSubSocket>();
+        services.AddTransient<IPubSocket, ZmqPubSocket>();
+    }
+    
+    private static void RegisterMsqSocket(IServiceCollection services)
+    {
+        services.AddTransient<IContext, MsgqContext>();
+        services.AddTransient<ISubSocket, MsgqSubSocket>();
+        // services.AddTransient<IPubSocket, Msgq>();
     }
 }
 

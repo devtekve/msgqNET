@@ -1,16 +1,20 @@
 using System.Diagnostics;
+using msgqNET.implementations.msgq.queues;
 using msgqNET.interfaces;
 
 namespace msgqNET.implementations.msgq;
 
 public class MsgqSubSocket : ISubSocket
 {
+    private MessageQueueSubscriber _socket;
+    private const int size = 10486144;
     public bool Connect(IContext context, string endpoint, string address = "127.0.0.1", bool conflate = false, bool checkEndpoint = true)
     {
         Debug.Assert(context is not null);
         Debug.Assert(address == "127.0.0.1");
         
-        throw new NotImplementedException();
+        _socket = new MessageQueueSubscriber(endpoint, size);
+        return true;
     }
 
     public void SetTimeout(TimeSpan timeout)
@@ -20,6 +24,7 @@ public class MsgqSubSocket : ISubSocket
 
     public IMessage? Receive(bool nonBlocking = false)
     {
+        var x = _socket.Data; //DUMMY EXAMPLE NOT YET IMPLEMENTED
         throw new NotImplementedException();
     }
 
