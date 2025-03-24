@@ -2,83 +2,9 @@ using System.IO.MemoryMappedFiles;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
-namespace msgqNET.implementations.msgq;
+namespace msgqNET.implementations.msgq.queues;
 
-public class MessageQueueSubscriber : MessageQueue
-{
-    public int ReaderId { get; private set; }
-    public long ReaderUidLocal { get; private set; }
-    public bool ReadConflage { get; private set; }
-
-    public void InitSubscriber()
-    {
-        if (accessor == null)
-            throw new InvalidOperationException("Message queue not initialized");
-
-        long uid = GetUid();
-
-        while (true)
-        {
-            long curNumReaders = header.NumReaders;
-            long newNumReaders = curNumReaders + 1;
-
-            // No more slots available. Reset all subscribers to kick out inactive ones
-            if (newNumReaders > MaxReaders)
-            {
-                header.NumReaders = 0;
-
-                for (int i = 0; i < MaxReaders; i++)
-                {
-                    header.ReadValids[i] = 0; // false
-
-                    long oldUid = header.ReadUIDs[i];
-                    header.ReadUIDs[i] = 0;
-                    
-#if RELEASE
-                    // Wake up reader if they are in a poll
-                    if (oldUid != 0)
-                    {
-                        throw new NotImplementedException("ThreadSignal is not implemented because SIGUSR2 handling is not implemented.");
-                        // SignalThread((int)(oldUid & 0xFFFFFFFF));
-                    }
-#endif
-                }
-
-                WriteHeader();
-                continue;
-            }
-
-            // Use atomic compare and exchange to handle race condition
-            long originalValue = curNumReaders;
-            if (Interlocked.CompareExchange(ref header.NumReaders, newNumReaders, curNumReaders) == originalValue)
-            {
-                ReaderId = (int)curNumReaders;
-                ReaderUidLocal = uid;
-
-                // Start with read_valid = false
-                header.ReadValids[ReaderId] = 0; // false
-                header.ReadPointers[ReaderId] = 0;
-                header.ReadUIDs[ReaderId] = uid;
-
-                WriteHeader();
-                break;
-            }
-        }
-
-        ResetReader();
-    }
-
-    private void ResetReader()
-    {
-        // On first read, sync read pointer with write pointer
-        header.ReadValids[ReaderId] = 0; // false
-        WriteHeader();
-    }
-
-    private static long GetUid() => ((long)Environment.ProcessId << 32) | (uint)Environment.CurrentManagedThreadId;
-}
-
-public  class MessageQueue
+public abstract class MessageQueue
 {
     private static readonly int HeaderSize = Marshal.SizeOf<MsgQueueHeader>();
     protected const int MaxReaders = 15;
@@ -94,6 +20,7 @@ public  class MessageQueue
     {
         public long NumReaders;
         public long WritePointer;
+        public long WriterUid;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxReaders)]
         public long[] ReadPointers;
@@ -102,7 +29,7 @@ public  class MessageQueue
         public long[] ReadValids;
 
         [MarshalAs(UnmanagedType.ByValArray, SizeConst = MaxReaders)]
-        public long[] ReadUIDs;
+        public long[] ReaderUIDs;
 
         public MsgQueueHeader(int numReaders)
         {
@@ -110,7 +37,7 @@ public  class MessageQueue
             WritePointer = 0;
             ReadPointers = new long[numReaders];
             ReadValids = new long[numReaders];
-            ReadUIDs = new long[numReaders];
+            ReaderUIDs = new long[numReaders];
         }
     }
 
@@ -210,4 +137,6 @@ public  class MessageQueue
         //     context.Cancel = true; // Prevents default termination
         // });
     }
+
+    protected static long GetUid() => ((long)Environment.ProcessId << 32) | (uint)Environment.CurrentManagedThreadId;
 }
