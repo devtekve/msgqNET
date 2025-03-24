@@ -56,9 +56,10 @@ subsocket.SetTimeout(TimeSpan.FromSeconds(30));
 // }
 
 
-var queue = new MessageQueue();
-if (queue.Initialize("example_queue", 1024) == 0)
+var queue = new MessageQueueSubscriber();
+if (queue.Initialize("backupManagerSP", 10486144) == 0)
 {
+    queue.InitSubscriber();
     Console.WriteLine("Message queue initialized successfully.");
 }
 else
@@ -66,6 +67,16 @@ else
     Console.WriteLine("Failed to initialize message queue.");
 }
 
+var queue2 = new MessageQueueSubscriber();
+if (queue2.Initialize("backupManagerSP", 10486144) == 0)
+{
+    queue2.InitSubscriber();
+    Console.WriteLine("Message queue initialized successfully.");
+}
+else
+{
+    Console.WriteLine("Failed to initialize message queue. ??");
+}
 
 // Perform operations...
 
