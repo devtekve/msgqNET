@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using msgqNET;
-using msgqNET.implementations.msgq;
-using msgqNET.implementations.zmq;
+using msgqNET.implementations.msgq.queues;
 using msgqNET.interfaces;
 using TestApp;
 
@@ -55,29 +54,12 @@ subsocket.SetTimeout(TimeSpan.FromSeconds(30));
 //     HexDumper.PrintHexDump(subsocket.Receive()?.GetData() ?? []);
 // }
 
-
-var queue = new MessageQueueSubscriber();
-if (queue.Initialize("backupManagerSP", 10486144) == 0)
-{
-    queue.InitSubscriber();
-    Console.WriteLine("Message queue initialized successfully.");
-}
-else
-{
-    Console.WriteLine("Failed to initialize message queue.");
-}
-
-var queue2 = new MessageQueueSubscriber();
-if (queue2.Initialize("backupManagerSP", 10486144) == 0)
-{
-    queue2.InitSubscriber();
-    Console.WriteLine("Message queue initialized successfully.");
-}
-else
-{
-    Console.WriteLine("Failed to initialize message queue. ??");
-}
+var pubqueue = new MessageQueuePublisher("backupManagerSP", 10486144);
+var queue = new MessageQueueSubscriber("backupManagerSP", 10486144);
+var queue2 = new MessageQueueSubscriber("backupManagerSP", 10486144);
 
 // Perform operations...
 
+pubqueue.Close();
 queue.Close();
+queue2.Close();
