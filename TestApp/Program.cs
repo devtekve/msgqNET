@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using msgqNET;
+using msgqNET.implementations.msgq;
 using msgqNET.implementations.zmq;
 using msgqNET.interfaces;
 using TestApp;
@@ -15,8 +16,8 @@ var messagingFactory = serviceProvider.GetRequiredService<IMessagingFactory>();
 var context = messagingFactory.CreateContext();
 
 
-// var subsocket = messagingFactory.CreateSubSocket(context, "42979", "127.0.0.1", false, false);
-// subsocket.SetTimeout(TimeSpan.FromSeconds(5));
+var subsocket = messagingFactory.CreateSubSocket(context, "carState", "127.0.0.1");
+subsocket.SetTimeout(TimeSpan.FromSeconds(30));
 //
 // long counter = 0;
 // // Event processing loop
@@ -33,23 +34,39 @@ var context = messagingFactory.CreateContext();
 
 
 
-var pubsocket = messagingFactory.CreatePubSocket(context, "example-endpoint");
-var subsocket = messagingFactory.CreateSubSocket(context, "example-endpoint");
+// var pubsocket = messagingFactory.CreatePubSocket(context, "example-endpoint");
+// var subsocket = messagingFactory.CreateSubSocket(context, "example-endpoint");
+//
+// var publisherTask = Task.Run(async () =>
+// {
+//     long counter = 0;
+//     // Event processing loop
+//     while (true)
+//     {
+//         pubsocket.SendMessage(new ZmqMessage($"hello world [{counter++}]"));
+//         await Task.Delay(3000);
+//     }
+// });
+//
+//
+// subsocket.SetTimeout(TimeSpan.FromSeconds(5));
+// while (true)
+// {
+//     HexDumper.PrintHexDump(subsocket.Receive()?.GetData() ?? []);
+// }
 
-var publisherTask = Task.Run(async () =>
+
+var queue = new MessageQueue();
+if (queue.Initialize("example_queue", 1024) == 0)
 {
-    long counter = 0;
-    // Event processing loop
-    while (true)
-    {
-        pubsocket.SendMessage(new ZmqMessage($"hello world [{counter++}]"));
-        await Task.Delay(3000);
-    }
-});
-
-
-subsocket.SetTimeout(TimeSpan.FromSeconds(5));
-while (true)
-{
-    HexDumper.PrintHexDump(subsocket.Receive()?.GetData() ?? []);
+    Console.WriteLine("Message queue initialized successfully.");
 }
+else
+{
+    Console.WriteLine("Failed to initialize message queue.");
+}
+
+
+// Perform operations...
+
+queue.Close();
