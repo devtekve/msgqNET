@@ -2,40 +2,84 @@ namespace msgqNET.implementations.msgq.queues;
 
 public class MessageQueueSubscriber : MessageQueue
 {
-    public int ReaderId { get; private set; }
-    public long ReaderUidLocal { get; private set; }
+    private static readonly long Uid = GetUid();
+    public long ReaderId { get; private set; }
     public bool ReadConflate { get; private set; }
-    
-    public MessageQueueSubscriber(string path, int size)
+
+    // Expose the underlying buffer and pointers through properties.
+    // Assume Header is an object that holds the shared state.
+    public long WritePointer => Header.WritePointer;
+
+    public long ReadPointer
     {
-        Initialize(path, size);
-        InitSubscriber();
+        get => Header.ReadPointers[ReaderId];
+        private set => Header.ReadPointers[ReaderId] = value;
+    }
+    
+    public bool ReadValid
+    {
+        get => Header.ReadValids[ReaderId] != 0;
+        private set => Header.ReadValids[ReaderId] = value ? 1 : 0;
+    }
+    
+    public long ReaderUid
+    {
+        get => Header.ReaderUIDs[ReaderId];
+        private set => Header.ReaderUIDs[ReaderId] = value;
     }
 
-    private void InitSubscriber()
+    private readonly object _syncLock = new();
+
+    public MessageQueueSubscriber(string path, int size) : base(path, size) => InitializeSubscriber();
+
+    private void InitializeSubscriber()
     {
         if (accessor == null)
             throw new InvalidOperationException("Message queue not initialized");
-
-        long uid = GetUid();
-
+        
         while (true)
         {
-            long curNumReaders = header.NumReaders;
-            long newNumReaders = curNumReaders + 1;
+            var curNumReaders = Header.NumReaders;
+            var newNumReaders = curNumReaders + 1;
 
             // No more slots available. Reset all subscribers to kick out inactive ones
             if (newNumReaders > MaxReaders)
             {
-                header.NumReaders = 0;
+                KickAllReaders();
+                continue;
+            }
 
-                for (int i = 0; i < MaxReaders; i++)
-                {
-                    header.ReadValids[i] = 0; // false
+            // Use atomic compare and exchange to handle race condition
+            if (Interlocked.CompareExchange(ref Header.NumReaders, newNumReaders, curNumReaders) != curNumReaders)
+                continue;
 
-                    long oldUid = header.ReaderUIDs[i];
-                    header.ReaderUIDs[i] = 0;
-                    
+            ReaderId = curNumReaders;
+            // Start with read_valid = false
+            ReadValid = false; // false
+            ReadPointer = 0;
+            ReaderUid = Uid;
+
+            WriteHeader();
+            break;
+        }
+
+        ResetReader();
+    }
+
+    /// <summary>
+    /// This method feels like madness. I am a subscriber. Why am I writing to the header (other than my own fields)?
+    /// </summary>
+    private void KickAllReaders()
+    {
+        Header.NumReaders = 0;
+
+        for (var i = 0; i < MaxReaders; i++)
+        {
+            Header.ReadValids[i] = 0; // false
+            Header.ReaderUIDs[i] = 0;
+
+            var oldUid = Header.ReaderUIDs[i];
+
 #if RELEASE
                     // Wake up reader if they are in a poll
                     if (oldUid != 0)
@@ -44,36 +88,48 @@ public class MessageQueueSubscriber : MessageQueue
                         // SignalThread((int)(oldUid & 0xFFFFFFFF));
                     }
 #endif
-                }
-
-                WriteHeader();
-                continue;
-            }
-
-            // Use atomic compare and exchange to handle race condition
-            long originalValue = curNumReaders;
-            if (Interlocked.CompareExchange(ref header.NumReaders, newNumReaders, curNumReaders) == originalValue)
-            {
-                ReaderId = (int)curNumReaders;
-                ReaderUidLocal = uid;
-
-                // Start with read_valid = false
-                header.ReadValids[ReaderId] = 0; // false
-                header.ReadPointers[ReaderId] = 0;
-                header.ReaderUIDs[ReaderId] = uid;
-
-                WriteHeader();
-                break;
-            }
         }
 
-        ResetReader();
-    }
-
-    private void ResetReader()
-    {
-        // On first read, sync read pointer with write pointer
-        header.ReadValids[ReaderId] = 0; // false
         WriteHeader();
     }
+
+
+    public void ResetReader()
+    {
+        lock (_syncLock)
+        {
+            // Sync read pointer with write pointer on reset
+            Header.ReadPointers[ReaderId] = Header.WritePointer;
+            Header.ReadValids[ReaderId] = 0; // mark as invalid, to be revalidated externally if needed
+            WriteHeader();
+        }
+    }
+
+    // private static T Align<T>(T value) where T : INumber<T>, IBitwiseOperators<T, T, T>
+    // {
+    //     // Constants
+    //     var seven = T.CreateChecked(7);
+    //     // Use the bitwise operator directly through the ~ operator
+    //     var mask = ~seven;
+    //
+    //     // (value + 7) & ~7
+    //     return (value + seven) & mask;
+    // }
+    
+    // private IMsgqMessage? ReadMessage()
+    // {
+    //     while (ReaderUid != Uid)
+    //     {
+    //         Console.WriteLine("Reader was evicted. Reconnecting...");
+    //         InitializeSubscriber();
+    //     }
+    //
+    //     while (!ReadValid)
+    //     {
+    //         Console.WriteLine("Reader is not valid. Resetting...");
+    //         ResetReader();
+    //     }
+    //    
+    //     
+    // }
 }

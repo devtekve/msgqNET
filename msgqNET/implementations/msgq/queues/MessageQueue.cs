@@ -41,22 +41,15 @@ public abstract class MessageQueue
         }
     }
 
-    protected MsgQueueHeader header;
+    protected MsgQueueHeader Header;
 
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="path"></param>
-    /// <param name="size">Size in bytes</param>
-    /// <returns></returns>
-    public int Initialize(string path, int size)
+    protected MessageQueue(string path, int size)
     {
         if (size < 0)
         {
             Console.WriteLine($"Size must be between 0 and {int.MaxValue}");
-            return -1;
         }
-        
+
 #if RELEASE
         if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
             RegisterSigUsr2Handler();
@@ -77,7 +70,7 @@ public abstract class MessageQueue
             accessor = memoryMappedFile.CreateViewAccessor();
 
             // Initialize or read the header
-            header = ReadHeader();
+            Header = ReadHeader();
 
             // Map the data portion
             Data = new byte[size];
@@ -85,10 +78,7 @@ public abstract class MessageQueue
         catch (Exception ex)
         {
             Console.WriteLine($"Failed to initialize message queue: {ex.Message}");
-            return -1;
         }
-
-        return 0;
     }
 
     private MsgQueueHeader ReadHeader()
@@ -110,7 +100,7 @@ public abstract class MessageQueue
         // Serialize the header to bytes
         var headerBytes = new byte[HeaderSize];
         var handle = GCHandle.Alloc(headerBytes, GCHandleType.Pinned);
-        Marshal.StructureToPtr(header, handle.AddrOfPinnedObject(), false);
+        Marshal.StructureToPtr(Header, handle.AddrOfPinnedObject(), false);
         handle.Free();
 
         // Write the header back to the memory-mapped file
