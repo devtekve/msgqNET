@@ -46,7 +46,7 @@ public class ZmqMessage : IMessage
         _netMqMessage.Clear();
     }
 
-    public int GetSize()
+    public long GetSize()
     {
         return _netMqMessage?.First.BufferSize ?? 0;
     }

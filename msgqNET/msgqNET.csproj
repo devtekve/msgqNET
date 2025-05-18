@@ -12,8 +12,4 @@
       <PackageReference Include="NetMQ" Version="4.0.1.13" />
     </ItemGroup>
 
-    <ItemGroup>
-      <Folder Include="implementations\msgq\" />
-    </ItemGroup>
-
 </Project>
